@@ -44,7 +44,7 @@ train_text, train_labels = (
     train_data["A"].values,
 )
 dataset = [
-    {"data": str(args.bos_token) + t + str(args.sep_token) + l + str(args.eos_token), "label": l}
+    {"data": "<usr>" + t + "<sys>" + l + str(tokenizer.eos_token), "label": l}
     for t, l in zip(train_text, train_labels)
 ]
 train_loader = DataLoader(
@@ -64,7 +64,7 @@ eval_text, eval_labels = (
 )
 
 dataset = [
-    {"data": str(args.bos_token) + t + str(args.sep_token) + l + str(args.eos_token), "label": l}
+    {"data": "<usr>" + t + "<sys>" + l + str(tokenizer.eos_token), "label": l}
     for t, l in zip(eval_text, eval_labels)
 ]
 eval_loader = DataLoader(
@@ -79,7 +79,7 @@ optimizer = AdamW(params=model.parameters(),
     lr=3e-5, weight_decay=3e-7
 )
 
-epochs = 30
+epochs = 10
 for epoch in range(epochs):
     model.train()
     for train in tqdm(train_loader):
@@ -88,20 +88,15 @@ for epoch in range(epochs):
         text_tokens = tokenizer(
             text,
             return_tensors="pt",
-            max_length=30,
-            truncation=True,
-            padding=True,
-        )
-        label_tokens = tokenizer(
-            label,
-            return_tensors="pt",
-            max_length=30,
+            max_length=80,
             truncation=True,
             padding=True,
         )
 
         input_ids = text_tokens.input_ids.cuda()
-        attention_mask = text_tokens.attention_mask.cuda()
+        # print(input_ids)
+        # print(tokenizer.convert_ids_to_tokens(input_ids[0]))         ## 토크나이저가 어떻게 자르고 어떻게 구성되있는지 보기. 
+        attention_mask = text_tokens.attention_mask.cuda()            ## <pad>토큰들은 자동으로 masking되어서 실제 단어만 들어있는것만 학습 진행. 
 
         output = model.forward(
             input_ids=input_ids,
@@ -113,56 +108,31 @@ for epoch in range(epochs):
         loss.backward()        
         optimizer.step()
 
-        pred = output.logits.argmax(-1)     
-
-        correct = 0
-        for pre, lab in zip(pred, label):
-            if pre == lab:
-                correct += 1
-
     print({"loss": loss.item()})
-    print({"acc": correct / len(pred)})   ## 탭하나 안에 넣으면 step단위로 볼수있음. 
 
+    with torch.no_grad():
+        model.eval()
+        for eval in tqdm(eval_loader):
+            eval_text, eval_label = eval["data"], eval["label"]
+            eval_text_tokens = tokenizer(
+                eval_text,
+                return_tensors="pt",
+                max_length=80,
+                truncation=True,
+                padding=True,
+            )
 
-    # with torch.no_grad():
-    model.eval()
-    for eval in tqdm(eval_loader):
-        eval_text, eval_label = eval["data"], eval["label"]
-        eval_text_tokens = tokenizer(
-            eval_text,
-            return_tensors="pt",
-            max_length=30,
-            truncation=True,
-            padding=True,
-        )
-        eval_label_tokens = tokenizer(
-            eval_label,
-            return_tensors="pt",
-            max_length=30,
-            truncation=True,
-            padding=True,
-        )
+            input_ids = eval_text_tokens.input_ids.cuda()
+            attention_mask = eval_text_tokens.attention_mask.cuda()
 
-        input_ids = eval_text_tokens.input_ids.cuda()
-        attention_mask = eval_text_tokens.attention_mask.cuda()
+            eval_out = model.forward(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=input_ids,
+            )
+    
+            eval_loss = eval_out.loss
 
-        eval_out = model.forward(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=input_ids,
-        )
-
-        eval_pred = eval_out.logits.argmax(-1)        
-        eval_loss = eval_out.loss
-
-
-        eval_correct = 0
-        for pre, lab in zip(eval_pred, eval_label):
-            if pre == lab:
-                eval_correct += 1
-
-    print({"eval_loss": eval_loss.item()})   ## 이미 다 적용된 상태인듯..
-    print({"eval_acc": eval_correct / len(eval_pred)})             ## 탭하나 안에 넣으면 step단위로 볼수있음. 
-    print({"epoch": epoch+1})
-    torch.save(model.state_dict(), f"model_save/GPT-2_fintuing-{epoch+1}.pt")
-        
+        print({"eval_loss": eval_loss.item()})          
+        print({"epoch": epoch+1})
+        torch.save(model.state_dict(), f"model_save/GPT-2_fintuing-{epoch+1}.pt")

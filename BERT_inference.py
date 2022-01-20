@@ -29,7 +29,6 @@ dataset = [
     for t, l in zip(eval_text, eval_labels)
 ]
 
-
 acc = 0
 for data in tqdm(dataset):
     text, label = data["data"], data["label"]

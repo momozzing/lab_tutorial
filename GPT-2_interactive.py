@@ -4,10 +4,9 @@ python interactive.py
 import torch
 from transformers import AutoModelWithLMHead, AutoTokenizer
 
-model_name = "skt/kogpt2-base-v2"
 ckpt_name = "model_save/GPT-2_fintuing-30.pt"
-model = AutoModelWithLMHead.from_pretrained(model_name)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelWithLMHead.from_pretrained("skt/kogpt2-base-v2")
+tokenizer = AutoTokenizer.from_pretrained("skt/kogpt2-base-v2")
 
 SPECIAL_TOKENS = {
     "bos_token": "<bos>",
@@ -26,22 +25,20 @@ with torch.no_grad():
     while True:
         t = input("\nUser: ")
         tokens = tokenizer(
-            t,
+            "<usr>" + t,
             return_tensors="pt",
             truncation=True,
             padding=True,
-            max_length=50
+            max_length=80
         )
 
         input_ids = tokens.input_ids.cuda()
         attention_mask = tokens.attention_mask.cuda()
         sample_output = model.generate(
             input_ids, 
-            do_sample=True, 
-            max_length=50,
-            # max_new_tokens=50, 
-            # top_k=50,
-            # return_dict_in_generate=True
+            max_length=80, 
+            num_beams=5, 
+            early_stopping=True
         )
         gen = sample_output[0]
         print("System: " + tokenizer.decode(gen[len(input_ids[0]):-1], skip_special_tokens=True))

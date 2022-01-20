@@ -2,13 +2,13 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, BertForSequenceClassification
 from torch.optim import AdamW
 from kobert_tokenizer import KoBERTTokenizer
 
 tokenizer = KoBERTTokenizer.from_pretrained('skt/kobert-base-v1')
 
-model = AutoModelForSequenceClassification.from_pretrained(
+model = BertForSequenceClassification.from_pretrained(
     'skt/kobert-base-v1',
     num_labels=2,
 ).cuda()
