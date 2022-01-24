@@ -59,7 +59,6 @@ optimizer = AdamW(params=model.parameters(),
 )
 
 epochs = 1
-# step = 0
 for epoch in range(epochs):
     model.train()
     for train in tqdm(train_loader):
@@ -71,6 +70,7 @@ for epoch in range(epochs):
             truncation=True,
             padding=True,
             # max_length=140
+
         )
 
         input_ids = tokens.input_ids.cuda()
@@ -88,7 +88,6 @@ for epoch in range(epochs):
 
         acc = 0
         for res, lab in zip(classification_results, label):
-            # print(res, lab)
             if res == lab:
                 acc += 1
 
